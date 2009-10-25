@@ -1,0 +1,3 @@
+# Paquetes de los que depende esta aplicacion
+python
+timeout
