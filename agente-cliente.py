@@ -1,40 +1,78 @@
 #!/usr/bin/env python
-
 # ------------------------------
 # importacion
 # ------------------------------
-import socket, sys, time, ConfigParser
+import socket, os, time, ConfigParser
+
+
+def poner_mensaje( tipo , mensaje ):
+	# -----------------------------
+	# Colocar mensajes con formato
+	# y marca de tiempo
+	# -----------------------------
+	print time.strftime('%Y-%m-%d-%X') + " " + tipo + ": " + mensaje
+
+def ejecutar_comando( comando ):
+	# -----------------------------
+	# Ejecutar el comando en el
+	# sistema operativo
+	# -----------------------------
+	os.system( comando + ' > /dev/null &' )
+
+def activar_configuracion():
+	# ------------------------------
+	# Variables del servicio desde
+	# un archivo de configuracion
+	# ------------------------------
+	configuracion = "agente-cliente.cfg"
+	global direccion
+	global puerto
+	global clave
+	try:
+		cfg = ConfigParser.ConfigParser()
+		cfg.read([configuracion])
+		direccion = cfg.get('cliente','ipcliente')
+		puerto = int(cfg.get('cliente','puerto'))
+		clave = cfg.get('cliente','clave')
+	except:
+		poner_mensaje( 'ERROR' , "No se pudo leer el archivo de configuracion " + configuracion )
+		poner_mensaje( 'AVISO' , "Se tomaran los valores por omision: 127.0.0.1 6470 root" )
+		direccion = '127.0.0.1'
+		puerto = 6470
+		clave = 'root'
+
 
 # ------------------------------
-# parametros a utilizar
+# iniciacion del agente servidor
 # ------------------------------
-if( len(sys.argv) == 5 ):
-	continuar = True
-	direccion =  sys.argv[1]
-	clave = sys.argv[2]
-	comando =  sys.argv[3]
-	try:
-		puerto =  int(sys.argv[4])
-	except:
-		print "No acepto " + sys.argv[4] + " !"
-		print "Probando puerto 6470"
-		puerto = 6470
+if __name__ == "__main__":
+	activar_configuracion()
 	agente = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
 	try:
-		agente.connect( ( direccion, puerto ) )
+		agente.bind( ( direccion, puerto ) )
+		agente.listen( 1 )
+		seguir = True
+		# ------------------------------
+		# Bucle infinito para atender clientes
+		# ------------------------------
+		while seguir:
+			canal, detalles = agente.accept( )
+			poner_mensaje( 'AVISO' , 'Se ha recibido una conexion ' + str( detalles ) )
+			canal.send( 'Hola ' + str( detalles ) + ' !' )
+			peticion = canal.recv(1000)
+			if ( clave == peticion):
+				poner_mensaje( 'AVISO' , "El agente servidor se identifico correctamente" )
+				canal.send( 'Mucho gusto! Que desea?' )
+				peticion = canal.recv(1000)
+				if ( "hola" == peticion ):
+					poner_mensaje( 'AVISO' , "El agente servidor solicito terminar el agente" )
+					seguir = False
+				else:
+					poner_mensaje( 'AVISO' , "El agente servidor solicito la ejecucion de: " + peticion ) 
+					ejecutar_comando( peticion )
+			else:
+				poner_mensaje( 'ERROR' , "El agente servidor no se identifico correctamente" )
+				canal.send( 'Adios !' )
+			canal.close( )
 	except:
-		print "No se pudo establecer la conexion en la direccion: "+ direccion +" con el puerto: " + str(puerto)
-		continuar = False
-	if ( continuar == True ):
-		data, server = agente.recvfrom( 100 )
-		print data
-		agente.send( clave )
-		data, server = agente.recvfrom( 100 )
-		print data
-		agente.send( comando )
-		agente.close()
-else:
-	print "--------------------------------------------------------------"
-	print " Tiene que mandar cuatro parametros"
-	print "     agente-cliente.py <direccion> <clave> <comando> <puerto>"
-	print "--------------------------------------------------------------"
+			poner_mensaje( 'ERROR' , "No se pudo iniciar el agente cliente" )

@@ -1,27 +1,13 @@
 #!/usr/bin/env python
+
 # ------------------------------
 # importacion
 # ------------------------------
-import socket, os, time, ConfigParser
-
-
-def poner_mensaje( tipo , mensaje ):
-	# -----------------------------
-	# Colocar mensajes con formato
-	# y marca de tiempo
-	# -----------------------------
-	print time.strftime('%Y-%m-%d-%X') + " " + tipo + ": " + mensaje
-
-def ejecutar_comando( comando ):
-	# -----------------------------
-	# Ejecutar el comando en el
-	# sistema operativo
-	# -----------------------------
-	os.system( comando + ' > /dev/null &' )
+import socket, sys, time, ConfigParser
 
 def activar_configuracion():
 	# ------------------------------
-	# Variables del servicio desde
+	# Variables del cliente desde
 	# un archivo de configuracion
 	# ------------------------------
 	configuracion = "agente-servidor.cfg"
@@ -42,37 +28,40 @@ def activar_configuracion():
 		clave = 'root'
 
 
+
 # ------------------------------
-# iniciacion del agente servidor
+# parametros a utilizar
 # ------------------------------
-if __name__ == "__main__":
-	activar_configuracion()
+if( len(sys.argv) == 5 ):
+	continuar = True
+	direccion =  sys.argv[1]
+	clave = sys.argv[2]
+	comando =  sys.argv[3]
+	try:
+		puerto =  int(sys.argv[4])
+	except:
+		print "No acepto " + sys.argv[4] + " !"
+		print "Probando puerto 6470"
+		puerto = 6470
 	agente = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
 	try:
-		agente.bind( ( direccion, puerto ) )
-		agente.listen( 1 )
-		seguir = True
-		# ------------------------------
-		# Bucle infinito para atender clientes
-		# ------------------------------
-		while seguir:
-			canal, detalles = agente.accept( )
-			poner_mensaje( 'AVISO' , 'Se ha recibido una conexion ' + str( detalles ) )
-			canal.send( 'Hola ' + str( detalles ) + ' !' )
-			peticion = canal.recv(1000)
-			if ( clave == peticion):
-				poner_mensaje( 'AVISO' , "El cliente se identifico correctamente" )
-				canal.send( 'Mucho gusto! Que desea?' )
-				peticion = canal.recv(1000)
-				if ( "hola" == peticion ):
-					poner_mensaje( 'AVISO' , "El cliente solicito terminar el agente" )
-					seguir = False
-				else:
-					poner_mensaje( 'AVISO' , "El cliente solicito la ejecucion de: " + peticion ) 
-					ejecutar_comando( peticion )
-			else:
-				poner_mensaje( 'ERROR' , "El cliente no se identifico correctamente" )
-				canal.send( 'Adios !' )
-			canal.close( )
+		agente.connect( ( direccion, puerto ) )
 	except:
-			poner_mensaje( 'ERROR' , "No se pudo iniciar el agente" )
+		print "No se pudo establecer la conexion en la direccion: "+ direccion +" con el puerto: " + str(puerto)
+		continuar = False
+	if ( continuar == True ):
+		data, server = agente.recvfrom( 100 )
+		print data
+		agente.send( clave )
+		data, server = agente.recvfrom( 100 )
+		print data
+		agente.send( comando )
+		agente.close()
+else:
+	print "--------------------------------------------------------------"
+	print " Tiene que mandar cuatro parametros"
+	print "     agente-servidor.py <direccion> <clave> <comando> <puerto>"
+	print "--------------------------------------------------------------"
+
+if __name__ == "__main__":
+	activar_configuracion()
