@@ -17,7 +17,7 @@ def ejecutar_comando( comando ):
 	# Ejecutar el comando en el
 	# sistema operativo
 	# -----------------------------
-	os.system( comando + ' > /dev/null &' )
+	os.system( comando + ' 2> /dev/null > /dev/null &' )
 
 def activar_configuracion():
 	# ------------------------------
@@ -43,7 +43,7 @@ def activar_configuracion():
 
 
 # ------------------------------
-# iniciacion del agente servidor
+# iniciacion del agente cliente
 # ------------------------------
 if __name__ == "__main__":
 	activar_configuracion()
@@ -66,13 +66,17 @@ if __name__ == "__main__":
 				peticion = canal.recv(1000)
 				if ( "hola" == peticion ):
 					poner_mensaje( 'AVISO' , "El agente servidor solicito terminar el agente" )
+					canal.send( 'Agente servidor terminando... Nos vemos!' )
 					seguir = False
 				else:
 					poner_mensaje( 'AVISO' , "El agente servidor solicito la ejecucion de: " + peticion ) 
 					ejecutar_comando( peticion )
+					canal.send( 'Comando: <' + peticion + '> ejecutado!' )
 			else:
 				poner_mensaje( 'ERROR' , "El agente servidor no se identifico correctamente" )
-				canal.send( 'Adios !' )
+				canal.send( 'No se quien es usted...' )
+				poner_mensaje( 'ERROR' , "Puede ser un intento de ataque o una mala configuracion en el servidor" )
+				canal.send( '... Adios !' )
 			canal.close( )
 	except:
-			poner_mensaje( 'ERROR' , "No se pudo iniciar el agente cliente" )
+			poner_mensaje( 'ERROR' , "No se pudo iniciar el agente cliente" )			
