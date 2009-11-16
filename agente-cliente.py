@@ -24,7 +24,7 @@ def activar_configuracion():
 	# Variables del servicio desde
 	# un archivo de configuracion
 	# ------------------------------
-	configuracion = "agente-cliente.cfg"
+	configuracion = "./configuracion/agente-cliente.cfg"
 	global direccion
 	global puerto
 	global clave
@@ -52,31 +52,37 @@ if __name__ == "__main__":
 		agente.bind( ( direccion, puerto ) )
 		agente.listen( 1 )
 		seguir = True
-		# ------------------------------
-		# Bucle infinito para atender clientes
-		# ------------------------------
-		while seguir:
-			canal, detalles = agente.accept( )
-			poner_mensaje( 'AVISO' , 'Se ha recibido una conexion ' + str( detalles ) )
-			canal.send( 'Hola ' + str( detalles ) + ' !' )
-			peticion = canal.recv(1000)
-			if ( clave == peticion):
-				poner_mensaje( 'AVISO' , "El agente servidor se identifico correctamente" )
-				canal.send( 'Mucho gusto! Que desea?' )
-				peticion = canal.recv(1000)
-				if ( "hola" == peticion ):
-					poner_mensaje( 'AVISO' , "El agente servidor solicito terminar el agente" )
-					canal.send( 'Agente servidor terminando... Nos vemos!' )
-					seguir = False
-				else:
-					poner_mensaje( 'AVISO' , "El agente servidor solicito la ejecucion de: " + peticion ) 
-					ejecutar_comando( peticion )
-					canal.send( 'Comando: <' + peticion + '> ejecutado!' )
-			else:
-				poner_mensaje( 'ERROR' , "El agente servidor no se identifico correctamente" )
-				canal.send( 'No se quien es usted...' )
-				poner_mensaje( 'ERROR' , "Puede ser un intento de ataque o una mala configuracion en el servidor" )
-				canal.send( '... Adios !' )
-			canal.close( )
 	except:
-			poner_mensaje( 'ERROR' , "No se pudo iniciar el agente cliente" )			
+		poner_mensaje( 'ERROR' , "No se pudo iniciar el agente cliente" )
+		seguir = False
+	# ------------------------------
+	# Bucle infinito para atender clientes
+	# ------------------------------
+	while seguir:
+		canal, detalles = agente.accept( )
+		ipremota = str( detalles )
+		ipremota = ipremota[ ipremota.find("(") + 2 : ipremota.find(",") - 1 ]
+		poner_mensaje( 'AVISO' , 'Se ha recibido una conexion ' + ipremota )
+		canal.send( 'Hola ' + ipremota + ' !' )
+		peticion = canal.recv(1000)
+		if ( clave == peticion):
+			poner_mensaje( 'AVISO' , "El agente servidor se identifico correctamente" )
+			canal.send( 'Mucho gusto! Que desea?' )
+			peticion = canal.recv(1000)
+			if ( "hola" == peticion ):
+				poner_mensaje( 'AVISO' , "El agente servidor solicito terminar el agente" )
+				canal.send( 'Agente cliente terminando... Nos vemos!' )
+				seguir = False
+			elif ( "estado" == peticion ):
+				poner_mensaje( 'AVISO' , "El agente servidor solicito corroborar el estado, y le dije que estaba vivo..." )
+				canal.send( 'Estoy vivo ' + direccion + ' !' )
+			else:
+				poner_mensaje( 'AVISO' , "El agente servidor solicito la ejecucion de: " + peticion ) 
+				ejecutar_comando( peticion )
+				canal.send( 'Comando: <' + peticion + '> ejecutado!' )
+		else:
+			poner_mensaje( 'ERROR' , "El agente servidor no se identifico correctamente" )
+			canal.send( 'No se quien es usted...' )
+			poner_mensaje( 'ERROR' , "Puede ser un intento de ataque o una mala configuracion en el servidor" )
+			canal.send( '... Adios !' )
+		canal.close( )			

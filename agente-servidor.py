@@ -17,7 +17,7 @@ def activar_configuracion():
 	# Variables del servidor desde
 	# un archivo de configuracion
 	# ------------------------------
-	configuracion = "agente-servidor.cfg"
+	configuracion = "./configuracion/agente-servidor.cfg"
 	global direccion
 	global puerto
 	global clave
@@ -26,6 +26,7 @@ def activar_configuracion():
 		cfg.read([configuracion])
 		puerto = int(cfg.get('servidor','puerto'))
 		clave = cfg.get('servidor','clave')
+		clientes = cfg.get('servidor','clientes')
 	except:
 		poner_mensaje( 'ERROR' , "No se pudo leer el archivo de configuracion " + configuracion )
 		poner_mensaje( 'AVISO' , "Se tomaran los valores por omision: 6470 root" )
