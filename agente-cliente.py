@@ -1,9 +1,13 @@
 #!/usr/bin/env python
+############################################
+#  Cliente de CiberUES                     #
+############################################
+
+
 # ------------------------------
 # importacion
 # ------------------------------
-import socket, os, time, ConfigParser
-
+import socket, sys, time, ConfigParser
 
 def poner_mensaje( tipo , mensaje ):
 	# -----------------------------
@@ -12,77 +16,72 @@ def poner_mensaje( tipo , mensaje ):
 	# -----------------------------
 	print time.strftime('%Y-%m-%d-%X') + " " + tipo + ": " + mensaje
 
-def ejecutar_comando( comando ):
-	# -----------------------------
-	# Ejecutar el comando en el
-	# sistema operativo
-	# -----------------------------
-	os.system( comando + ' 2> /dev/null > /dev/null &' )
-
 def activar_configuracion():
 	# ------------------------------
-	# Variables del servicio desde
+	# Variables del servidor desde
 	# un archivo de configuracion
 	# ------------------------------
-	configuracion = "./configuracion/agente-cliente.cfg"
+	configuracion = "./agente-cliente.cfg"
 	global direccion
 	global puerto
 	global clave
 	try:
 		cfg = ConfigParser.ConfigParser()
 		cfg.read([configuracion])
-		direccion = cfg.get('cliente','ipcliente')
 		puerto = int(cfg.get('cliente','puerto'))
 		clave = cfg.get('cliente','clave')
+		clientes = cfg.get('cliente','servidor')
 	except:
 		poner_mensaje( 'ERROR' , "No se pudo leer el archivo de configuracion " + configuracion )
-		poner_mensaje( 'AVISO' , "Se tomaran los valores por omision: 127.0.0.1 6470 root" )
-		direccion = '127.0.0.1'
+		poner_mensaje( 'AVISO' , "Se tomaran los valores por omision: 6470 root" )
 		puerto = 6470
 		clave = 'root'
 
-
-# ------------------------------
-# iniciacion del agente cliente
-# ------------------------------
 if __name__ == "__main__":
 	activar_configuracion()
-	agente = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
-	try:
-		agente.bind( ( direccion, puerto ) )
-		agente.listen( 1 )
-		seguir = True
-	except:
-		poner_mensaje( 'ERROR' , "No se pudo iniciar el agente cliente" )
-		seguir = False
 	# ------------------------------
-	# Bucle infinito para atender clientes
+	# parametros a utilizar
 	# ------------------------------
-	while seguir:
-		canal, detalles = agente.accept( )
-		ipremota = str( detalles )
-		ipremota = ipremota[ ipremota.find("(") + 2 : ipremota.find(",") - 1 ]
-		poner_mensaje( 'AVISO' , 'Se ha recibido una conexion ' + ipremota )
-		canal.send( 'Hola ' + ipremota + ' !' )
-		peticion = canal.recv(1000)
-		if ( clave == peticion):
-			poner_mensaje( 'AVISO' , "El agente servidor se identifico correctamente" )
-			canal.send( 'Mucho gusto! Que desea?' )
-			peticion = canal.recv(1000)
-			if ( "hola" == peticion ):
-				poner_mensaje( 'AVISO' , "El agente servidor solicito terminar el agente" )
-				canal.send( 'Agente cliente terminando... Nos vemos!' )
-				seguir = False
-			elif ( "estado" == peticion ):
-				poner_mensaje( 'AVISO' , "El agente servidor solicito corroborar el estado, y le dije que estaba vivo..." )
-				canal.send( 'Estoy vivo ' + direccion + ' !' )
-			else:
-				poner_mensaje( 'AVISO' , "El agente servidor solicito la ejecucion de: " + peticion ) 
-				ejecutar_comando( peticion )
-				canal.send( 'Comando: <' + peticion + '> ejecutado!' )
-		else:
-			poner_mensaje( 'ERROR' , "El agente servidor no se identifico correctamente" )
-			canal.send( 'No se quien es usted...' )
-			poner_mensaje( 'ERROR' , "Puede ser un intento de ataque o una mala configuracion en el servidor" )
-			canal.send( '... Adios !' )
-		canal.close( )			
+	if( len(sys.argv) == 3 ):
+		continuar = True
+		direccion =  sys.argv[1]
+		comando =  sys.argv[2]
+		#Crear 
+		try:
+			agente = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+		except socket.error, msg:
+			poner_mensaje ( 'ERROR' ,'Fallo crear socket. codigo: ' + str(msg[0]) + ' , mensaje: ' + msg[1])
+			continuar = False
+		#Conectarse
+		try:
+			agente.connect( ( direccion, puerto ) )
+		except:
+			poner_mensaje ( 'ERROR' , "No se pudo establecer la conexion en la direccion: "+ direccion +" con el puerto: " + str(puerto) )
+			continuar = False
+		#Hacer todo lo demas
+		poner_mensaje ( 'AVISO' ,"Conectado al"+direccion+" ")
+		if ( continuar == True ):
+			#Obtiene mensaje, envia clave
+			data, server = agente.recvfrom( 100 )
+			poner_mensaje ( 'MENSAJE' , data )
+			agente.send( clave )
+			#Obtiene Mensaje, envia comando
+			data, server = agente.recvfrom( 100 )
+			poner_mensaje ( 'MENSAJE' , data )
+			agente.send( comando )
+			#Obtiene mensaje
+			data, server = agente.recvfrom( 100 )
+			poner_mensaje ( 'MENSAJE' , data )
+			#Obtiene mensaje, se salr
+			data, server = agente.recvfrom( 100 )
+			poner_mensaje ( 'MENSAJE' , data) 
+			agente.send( "salir" )
+
+			agente.close()
+	else:
+		print "--------------------------------------------------------------"
+		print " Tiene que mandar cuatro parametros"
+		print "     agente-servidor.py <direccion> <comando>"
+		print "--------------------------------------------------------------"
+
+# vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
